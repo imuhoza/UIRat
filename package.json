@@ -24,7 +24,7 @@
     "dom",
     "design"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
   },

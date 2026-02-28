@@ -220,4 +220,4 @@ npm run clean
 
 ## License
 
-UNLICENSED
+[MIT](LICENSE)
