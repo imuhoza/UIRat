@@ -1,0 +1,327 @@
+<!--
+  @file ui.html — UIRat Figma Plugin User Interface
+
+  This is the plugin's UI panel shown inside Figma.
+  Users can paste or upload CIR/Figma JSON, then click "Generate"
+  to create the design on the Figma canvas.
+
+  Communication:
+    This UI (iframe) → postMessage → code.ts (sandbox) → Figma API
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    /* ---- Reset & Base ---- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      color: #333;
+      background: #fff;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      gap: 12px;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .header .version {
+      font-size: 11px;
+      color: #999;
+      font-weight: 400;
+    }
+
+    /* ---- Instructions ---- */
+    .instructions {
+      font-size: 11px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    /* ---- File Input ---- */
+    .file-input-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .file-input-wrapper label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    input[type="file"] {
+      font-size: 11px;
+      color: #555;
+    }
+
+    /* ---- Textarea ---- */
+    .json-input {
+      flex: 1;
+      min-height: 200px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      color: #333;
+      background: #fafafa;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .json-input:focus {
+      outline: none;
+      border-color: #0066ff;
+      background: #fff;
+    }
+
+    .json-input::placeholder {
+      color: #bbb;
+    }
+
+    /* ---- Status ---- */
+    .status {
+      font-size: 11px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .status.visible {
+      display: block;
+    }
+
+    .status.error {
+      background: #fff0f0;
+      color: #cc3333;
+      border: 1px solid #ffcccc;
+    }
+
+    .status.success {
+      background: #f0fff4;
+      color: #227733;
+      border: 1px solid #ccffcc;
+    }
+
+    .status.loading {
+      background: #f0f4ff;
+      color: #3355cc;
+      border: 1px solid #ccdaff;
+    }
+
+    /* ---- Buttons ---- */
+    .button-row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    button {
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: #0066ff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0052cc;
+    }
+
+    .btn-primary:disabled {
+      background: #99bbff;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #555;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    /* ---- Separator ---- */
+    .separator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #999;
+    }
+
+    .separator::before,
+    .separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>UIRat Importer</h1>
+    <span class="version">v0.1.0</span>
+  </div>
+
+  <p class="instructions">
+    Paste Figma-ready JSON (from <code>uirat capture --transform</code>)
+    or upload a <code>.figma.json</code> file to import a captured web page
+    into your Figma canvas.
+  </p>
+
+  <div class="file-input-wrapper">
+    <label for="file-upload">Upload JSON file:</label>
+    <input type="file" id="file-upload" accept=".json,.figma.json,.cir.json">
+  </div>
+
+  <div class="separator">or paste JSON below</div>
+
+  <textarea
+    class="json-input"
+    id="json-textarea"
+    placeholder='{"type": "FRAME", "name": "...", "width": 1440, ...}'
+    spellcheck="false"
+  ></textarea>
+
+  <div class="status" id="status-message"></div>
+
+  <div class="button-row">
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-primary" id="btn-generate">Generate</button>
+  </div>
+
+  <script>
+    // ========================================================================
+    // UI LOGIC — Handles user input, validation, and communication with sandbox
+    // ========================================================================
+
+    const jsonTextarea = document.getElementById('json-textarea');
+    const fileUpload = document.getElementById('file-upload');
+    const btnGenerate = document.getElementById('btn-generate');
+    const btnCancel = document.getElementById('btn-cancel');
+    const statusMessage = document.getElementById('status-message');
+
+    // ---- File Upload Handler ----
+    fileUpload.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(readEvent) {
+        jsonTextarea.value = readEvent.target.result;
+        showStatus('File loaded: ' + file.name, 'success');
+      };
+      reader.onerror = function() {
+        showStatus('Failed to read file.', 'error');
+      };
+      reader.readAsText(file);
+    });
+
+    // ---- Generate Button ----
+    btnGenerate.addEventListener('click', function() {
+      const jsonString = jsonTextarea.value.trim();
+
+      if (!jsonString) {
+        showStatus('Please paste or upload JSON data first.', 'error');
+        return;
+      }
+
+      // Validate JSON
+      let parsedData;
+      try {
+        parsedData = JSON.parse(jsonString);
+      } catch (parseError) {
+        showStatus('Invalid JSON: ' + parseError.message, 'error');
+        return;
+      }
+
+      // Auto-detect format: CIR document or Figma-ready JSON
+      let figmaData = parsedData;
+
+      // If this looks like a CIR document (has version + pages), extract the root node
+      // and inform the user they should use --transform
+      if (parsedData.version === '1.0' && parsedData.pages) {
+        showStatus(
+          'This looks like raw CIR JSON. Please use "uirat capture --transform" ' +
+          'to generate Figma-ready JSON, then import the .figma.json file.',
+          'error'
+        );
+        return;
+      }
+
+      // Basic validation: must have type and name
+      if (!figmaData.type || !figmaData.name) {
+        showStatus('Invalid data: missing "type" or "name" property.', 'error');
+        return;
+      }
+
+      // Send to sandbox for processing
+      showStatus('Generating design...', 'loading');
+      btnGenerate.disabled = true;
+
+      parent.postMessage({
+        pluginMessage: { type: 'generate', data: figmaData }
+      }, '*');
+    });
+
+    // ---- Cancel Button ----
+    btnCancel.addEventListener('click', function() {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    });
+
+    // ---- Messages from Sandbox ----
+    window.onmessage = function(event) {
+      const message = event.data.pluginMessage;
+      if (!message) return;
+
+      if (message.type === 'generate-complete') {
+        showStatus('Done! ' + message.nodeCount + ' nodes created.', 'success');
+        btnGenerate.disabled = false;
+      }
+
+      if (message.type === 'generate-error') {
+        showStatus('Error: ' + message.error, 'error');
+        btnGenerate.disabled = false;
+      }
+    };
+
+    // ---- Status Display Helper ----
+    function showStatus(text, type) {
+      statusMessage.textContent = text;
+      statusMessage.className = 'status visible ' + type;
+    }
+  </script>
+</body>
+</html>

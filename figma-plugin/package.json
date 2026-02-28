@@ -1,0 +1,16 @@
+{
+  "name": "uirat-figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UIRat Figma Plugin — Import CIR JSON into Figma as design frames.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}

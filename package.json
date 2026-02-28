@@ -1,0 +1,50 @@
+{
+  "name": "uirat",
+  "version": "0.1.0",
+  "description": "UIRat — UI Reverse-Engineering & Reconstruction Pipeline. Scrape any web page and convert it to Figma designs or frontend code.",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "uirat": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "npm run build:serializer && tsc -p tsconfig.build.json",
+    "build:serializer": "node scripts/build-serializer.js",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ui",
+    "reverse-engineering",
+    "figma",
+    "scraper",
+    "dom",
+    "design"
+  ],
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.50",
+    "@ai-sdk/google": "^3.0.34",
+    "@ai-sdk/openai": "^3.0.37",
+    "ai": "^6.0.105",
+    "commander": "^12.1.0",
+    "playwright": "^1.48.0",
+    "sharp": "^0.33.5",
+    "svgo": "^3.3.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/sharp": "^0.31.1",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

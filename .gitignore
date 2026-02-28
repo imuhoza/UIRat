@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+state.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+coverage/
+*.cir.json
+*.figma.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# UIRat session files and assets
+*.session.enc
+uirat-assets/
+test-output-images/
+test-e2e-assets/
+
+# Figma plugin build
+figma-plugin/dist/
